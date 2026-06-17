@@ -1,7 +1,7 @@
 """
 AI 中文文本情绪分析系统 - Flask API
 """
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from model import analyzer
 import os
@@ -9,8 +9,15 @@ import json
 import pandas as pd
 from io import BytesIO
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend'))
 CORS(app)
+
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
+
+
+@app.route('/')
+def serve_frontend():
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'history.json')
 WORDCLOUD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'wordclouds')
