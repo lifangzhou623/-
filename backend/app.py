@@ -142,6 +142,13 @@ def history():
     })
 
 
+@app.route('/api/history/clear', methods=['DELETE'])
+def clear_history():
+    """清空分析历史"""
+    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump([], f)
+    return jsonify({'status': 'ok'})
+
 def save_history(record):
     records = load_history()
     records.append(record)

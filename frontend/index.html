@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI 中文文本情绪分析系统</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 :root {
   --bg:#0f172a; --surface:#1e293b; --surface2:#334155;
@@ -12,75 +13,99 @@
   --positive:#10b981; --negative:#ef4444; --neutral:#f59e0b;
   --radius:12px; --gap:20px;
 }
+.light-theme {
+  --bg:#f1f5f9; --surface:#ffffff; --surface2:#e2e8f0;
+  --text:#1e293b; --text2:#64748b; --primary:#4f46e5; --primary2:#6366f1;
+}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;transition:all .3s;}
 .container{max-width:1200px;margin:0 auto;padding:30px 24px;}
 
 /* Header */
-.header{text-align:center;padding:40px 0 30px;}
-.header h1{font-size:2.5rem;background:linear-gradient(135deg,var(--primary2),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
+.header{text-align:center;padding:30px 0 20px;position:relative;}
+.header h1{font-size:2.5rem;background:linear-gradient(135deg,var(--primary2),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
 .header p{color:var(--text2);font-size:1.05rem;}
+.theme-toggle{position:absolute;right:0;top:20px;width:44px;height:44px;border-radius:50%;border:1px solid var(--surface2);background:var(--surface);cursor:pointer;font-size:1.3rem;transition:all .25s;display:flex;align-items:center;justify-content:center;}
+.theme-toggle:hover{transform:scale(1.1);}
 
 /* Tabs */
-.tabs{display:flex;justify-content:center;gap:8px;margin-bottom:30px;}
+.tabs{display:flex;justify-content:center;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
 .tab-btn{padding:10px 28px;border-radius:25px;border:1px solid var(--surface2);background:var(--surface);color:var(--text2);cursor:pointer;font-size:0.95rem;transition:all .25s;}
 .tab-btn.active,.tab-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
 
 /* Cards */
-.card{background:var(--surface);border-radius:var(--radius);padding:24px;margin-bottom:var(--gap);border:1px solid var(--surface2);}
+.card{background:var(--surface);border-radius:var(--radius);padding:24px;margin-bottom:var(--gap);border:1px solid var(--surface2);position:relative;}
 
-/* Input Area */
-#singlePanel textarea{width:100%;height:150px;background:var(--bg);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);padding:16px;font-size:1rem;resize:vertical;font-family:inherit;}
-#singlePanel textarea:focus{outline:none;border-color:var(--primary);}
-.btn-row{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;}
-.btn{padding:10px 28px;border-radius:25px;border:none;cursor:pointer;font-size:0.95rem;font-weight:600;transition:all .25s;}
+/* Sample presets */
+.samples{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.sample-tag{padding:6px 14px;border-radius:20px;font-size:0.82rem;cursor:pointer;border:1px solid var(--surface2);background:var(--bg);color:var(--text2);transition:all .2s;}
+.sample-tag:hover{border-color:var(--primary);color:var(--primary);background:rgba(99,102,241,0.08);}
+
+/* Input */
+textarea{width:100%;height:130px;background:var(--bg);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);padding:16px;font-size:1rem;resize:vertical;font-family:inherit;}
+textarea:focus{outline:none;border-color:var(--primary);}
+.btn-row{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center;}
+.btn{padding:10px 24px;border-radius:25px;border:none;cursor:pointer;font-size:0.93rem;font-weight:600;transition:all .25s;}
 .btn-primary{background:var(--primary);color:#fff;}
 .btn-primary:hover{background:var(--primary2);transform:translateY(-1px);}
 .btn-outline{background:transparent;border:1px solid var(--surface2);color:var(--text);}
 .btn-outline:hover{border-color:var(--primary);color:var(--primary);}
+.btn-sm{padding:7px 16px;font-size:0.82rem;}
 .btn:disabled{opacity:0.5;cursor:not-allowed;}
+.char-count{font-size:0.82rem;color:var(--text2);margin-left:auto;}
 
-/* Result Card */
-.result-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
-.result-emoji{font-size:3rem;}
-.result-label{font-size:1.8rem;font-weight:700;}
-.result-score{font-size:1.1rem;color:var(--text2);}
+/* Result */
+.result-header{display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.result-emoji{font-size:2.8rem;}
+.result-label{font-size:1.7rem;font-weight:700;}
 .label-positive{color:var(--positive);}.label-negative{color:var(--negative);}.label-neutral{color:var(--neutral);}
 
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:20px;}
-.metric{background:var(--bg);padding:16px;border-radius:var(--radius);text-align:center;}
-.metric-value{font-size:1.6rem;font-weight:700;}
-.metric-label{font-size:0.85rem;color:var(--text2);margin-top:4px;}
+/* Gauge */
+.gauge-row{display:grid;grid-template-columns:200px 1fr;gap:var(--gap);margin-bottom:16px;align-items:center;}
+.gauge-wrap{display:flex;align-items:center;justify-content:center;}
+.gauge-svg{width:180px;height:130px;overflow:visible;}
+.gauge-bg{fill:none;stroke:var(--surface2);stroke-width:14;}
+.gauge-fill{fill:none;stroke-width:14;stroke-linecap:round;transition:stroke-dashoffset 1.2s ease,stroke .5s;}
+.gauge-needle{fill:var(--text);transition:transform 1.2s ease;transform-origin:90px 100px;}
+.gauge-text{text-anchor:middle;font-size:22px;font-weight:700;fill:var(--text);}
+.gauge-label{text-anchor:middle;font-size:11px;fill:var(--text2);}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px;}
+.metric{background:var(--bg);padding:14px;border-radius:var(--radius);text-align:center;}
+.metric-value{font-size:1.5rem;font-weight:700;}
+.metric-label{font-size:0.82rem;color:var(--text2);margin-top:2px;}
 
 /* Charts */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
-.chart-box{background:var(--surface);border-radius:var(--radius);padding:16px;border:1px solid var(--surface2);height:350px;}
-.chart-full{grid-column:1/-1;height:350px;}
+.chart-box{background:var(--surface);border-radius:var(--radius);padding:12px;border:1px solid var(--surface2);height:320px;}
+.chart-full{grid-column:1/-1;height:300px;}
 
 /* Keywords */
-.keywords{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
-.keyword{padding:6px 16px;border-radius:20px;font-size:0.88rem;font-weight:500;}
-.keyword-pos{background:rgba(16,185,129,0.15);color:var(--positive);}
-.keyword-neg{background:rgba(239,68,68,0.15);color:var(--negative);}
+.keywords{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.keyword{padding:5px 14px;border-radius:18px;font-size:0.85rem;}
+.keyword-pos{background:rgba(16,185,129,0.12);color:var(--positive);}
+.keyword-neg{background:rgba(239,68,68,0.12);color:var(--negative);}
 
 /* Sentences */
 .sentence-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--surface2);}
-.sentence-item:last-child{border:none;}
-.sentence-text{flex:1;font-size:0.92rem;}
-.sentence-badge{padding:4px 12px;border-radius:12px;font-size:0.8rem;font-weight:600;white-space:nowrap;}
+.sentence-text{flex:1;font-size:0.9rem;}
+.sentence-badge{padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;white-space:nowrap;}
 
-/* Batch upload */
+/* Upload */
 .upload-zone{border:2px dashed var(--surface2);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .25s;margin-bottom:16px;}
 .upload-zone:hover{border-color:var(--primary);background:rgba(99,102,241,0.05);}
-.upload-zone.dragover{border-color:var(--primary);background:rgba(99,102,241,0.1);}
+
+/* Toast */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:12px 28px;border-radius:25px;font-size:0.9rem;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
 
 /* Responsive */
 @media(max-width:768px){
-  .chart-row{grid-template-columns:1fr;}
-  .header h1{font-size:1.8rem;}
+  .chart-row,.gauge-row{grid-template-columns:1fr;}
+  .header h1{font-size:1.7rem;}
+  .gauge-wrap{justify-content:center;}
 }
 
-/* Loading spinner */
 .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--surface2);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 </style>
@@ -90,26 +115,36 @@ body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg)
 
 <!-- Header -->
 <div class="header">
-  <h1> AI 中文文本情绪分析系统</h1>
-  <p>基于深度学习的中文情感识别 · 支持单文本、批量分析 · 词云可视化</p>
+  <button class="theme-toggle" onclick="toggleTheme()" title="切换明暗主题" id="themeBtn">☀️</button>
+  <h1>🤖 AI 中文文本情绪分析系统</h1>
+  <p>基于深度学习的中文情感识别 · 单文本/批量分析 · 词云可视化 · 结果导出</p>
 </div>
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('single')"> 单文本分析</button>
-  <button class="tab-btn" onclick="switchTab('batch')"> 批量分析</button>
-  <button class="tab-btn" onclick="switchTab('history')"> 历史记录</button>
+  <button class="tab-btn active" onclick="switchTab('single')">📝 单文本分析</button>
+  <button class="tab-btn" onclick="switchTab('batch')">📊 批量分析</button>
+  <button class="tab-btn" onclick="switchTab('history')">📋 历史记录</button>
 </div>
 
 <!-- Single Text Panel -->
 <div id="singlePanel" class="card">
-  <h3 style="margin-bottom:12px;"> 输入文本</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+    <h3>输入文本</h3>
+    <span class="char-count" id="charCount">0 字</span>
+  </div>
+
+  <!-- Sample presets -->
+  <div class="samples" id="sampleTags">
+    <span style="font-size:0.82rem;color:var(--text2);padding:6px 0;">示例：</span>
+  </div>
+
   <textarea id="inputText" placeholder="在这里输入你想要分析的中文文本...
-例如：这部电影太精彩了，演员演技在线，剧情扣人心弦！强烈推荐！"></textarea>
+例如：这部电影太精彩了，演员演技在线，剧情扣人心弦！强烈推荐！" oninput="updateCharCount()"></textarea>
   <div class="btn-row">
-    <button class="btn btn-primary" onclick="analyzeText()"> 开始分析</button>
-    <button class="btn btn-outline" onclick="generateWordCloud()"> 生成词云</button>
-    <button class="btn btn-outline" onclick="clearInput()">清空</button>
+    <button class="btn btn-primary" onclick="analyzeText()">🔍 开始分析</button>
+    <button class="btn btn-outline" onclick="generateWordCloud()">☁️ 生成词云</button>
+    <button class="btn btn-outline" onclick="clearAll()">🗑️ 清空</button>
   </div>
 </div>
 
@@ -118,29 +153,67 @@ body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg)
 
 <!-- Batch Panel -->
 <div id="batchPanel" class="card" style="display:none;">
-  <h3 style="margin-bottom:12px;"> 批量文本分析</h3>
+  <h3 style="margin-bottom:12px;">📊 批量文本分析</h3>
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-    <p style="font-size:2rem;"> </p>
+    <p style="font-size:2rem;">📁</p>
     <p>点击上传CSV文件 或 拖拽到此处</p>
     <p style="font-size:0.85rem;color:var(--text2);margin-top:8px;">CSV第一列为待分析文本</p>
   </div>
   <input type="file" id="fileInput" accept=".csv,.txt" style="display:none;" onchange="handleFileUpload(event)">
   <p style="margin:8px 0;color:var(--text2);">或者直接粘贴多行文本（每行一条）：</p>
   <textarea id="batchText" style="width:100%;height:120px;background:var(--bg);border:1px solid var(--surface2);border-radius:var(--radius);color:var(--text);padding:12px;resize:vertical;"></textarea>
-  <button class="btn btn-primary" style="margin-top:12px;" onclick="analyzeBatch()"> 批量分析</button>
+  <button class="btn btn-primary" style="margin-top:12px;" onclick="analyzeBatch()">📊 批量分析</button>
   <div id="batchResult"></div>
 </div>
 
 <!-- History Panel -->
 <div id="historyPanel" class="card" style="display:none;">
-  <h3> 分析历史记录</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h3>📋 分析历史记录</h3>
+    <button class="btn btn-outline btn-sm" onclick="clearHistory()">清空历史</button>
+  </div>
   <div id="historyContent"></div>
 </div>
 
 </div>
 
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <script>
-const API = 'http://localhost:5000/api';
+// ===== Theme Toggle =====
+let isDark = true;
+function toggleTheme(){
+  isDark = !isDark;
+  document.body.classList.toggle('light-theme', !isDark);
+  document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+}
+
+// ===== Sample Presets =====
+const samples = [
+  {label:'👍 好评', text:'这部电影太精彩了，演员演技在线，剧情扣人心弦，特效震撼，强烈推荐！'},
+  {label:'👎 差评', text:'太失望了，剧情拖沓无聊，演员演技僵硬，浪费了两个小时，完全不值得看。'},
+  {label:'😐 中性', text:'今天天气多云转晴，温度适中，下午可能会下小雨，出门记得带伞。'},
+  {label:'🔥 激情', text:'太棒了！中国队赢了！全场沸腾！这是历史性的时刻，我激动得热泪盈眶！'},
+  {label:'😡 愤怒', text:'客服态度极其恶劣，等了半小时没人理，产品质量还有问题，投诉也没人处理。'},
+  {label:'📰 新闻', text:'央行今日宣布下调存款准备金率0.5个百分点，释放长期资金约1万亿元，支持实体经济发展。'},
+];
+samples.forEach(s=>{
+  const el = document.createElement('span');
+  el.className = 'sample-tag';
+  el.textContent = s.label;
+  el.onclick = ()=>{
+    document.getElementById('inputText').value = s.text;
+    updateCharCount();
+  };
+  document.getElementById('sampleTags').appendChild(el);
+});
+
+// ===== Char Count =====
+function updateCharCount(){
+  const len = document.getElementById('inputText').value.length;
+  document.getElementById('charCount').textContent = len + ' 字';
+}
 
 // ===== Tab Switch =====
 function switchTab(tab){
@@ -155,7 +228,7 @@ function switchTab(tab){
 // ===== Single Analysis =====
 async function analyzeText(){
   const text = document.getElementById('inputText').value.trim();
-  if(!text) return alert('请先输入文本！');
+  if(!text) return showToast('请先输入文本！');
   showLoading('resultArea');
   try{
     const res = await fetch(`${API}/analyze`,{
@@ -164,43 +237,55 @@ async function analyzeText(){
     });
     const data = await res.json();
     renderResult(data);
-  }catch(e){showError('resultArea','分析失败，请确认后端已启动');}
+  }catch(e){showError('resultArea','分析失败，请确认后端已启动 (python backend/app.py)');}
 }
 
 function renderResult(data){
-  const labelColors={positive:'label-positive',negative:'label-negative',neutral:'label-neutral'};
-  const labelNames={positive:'正面情绪 ',negative:'负面情绪 ',neutral:'中性情绪 '};
-  const labelClass = labelColors[data.label]||'label-neutral';
+  const emojis = {positive:'😊', negative:'😞', neutral:'😐'};
+  const names = {positive:'正面情绪', negative:'负面情绪', neutral:'中性情绪'};
+  const labelClass = {positive:'label-positive',negative:'label-negative',neutral:'label-neutral'}[data.label]||'label-neutral';
+  const scorePct = (data.score*100).toFixed(1);
+  const confPct = (data.confidence*100).toFixed(1);
 
-  let html=`<div class="card" style="margin-top:20px;">
-    <div class="result-header">
-      <span class="result-emoji"></span>
-      <div>
-        <span class="result-label ${labelClass}">${labelNames[data.label]||''}</span>
-        <span class="result-score"> | 得分: ${(data.score*100).toFixed(1)}% | 置信度: ${(data.confidence*100).toFixed(1)}%</span>
+  let html = `<div class="card" style="margin-top:20px;" id="resultCard">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+      <div class="result-header">
+        <span class="result-emoji">${emojis[data.label]||'😐'}</span>
+        <div>
+          <span class="result-label ${labelClass}">${names[data.label]||''}</span>
+          <span class="result-score" style="display:block;font-size:0.88rem;color:var(--text2);">得分 ${scorePct}% · 置信度 ${confPct}%</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="copyResult()">📋 复制结果</button>
+        <button class="btn btn-outline btn-sm" onclick="exportImage()">📸 导出图片</button>
       </div>
     </div>
 
-    <div class="metrics">
-      <div class="metric"><div class="metric-value">${(data.score*100).toFixed(1)}%</div><div class="metric-label">情感得分</div></div>
-      <div class="metric"><div class="metric-value">${(data.confidence*100).toFixed(1)}%</div><div class="metric-label">置信度</div></div>
-      <div class="metric"><div class="metric-value">${data.sentences_detail?.length||0}</div><div class="metric-label">分析句子数</div></div>
-      <div class="metric"><div class="metric-value">${data.keywords?.length||0}</div><div class="metric-label">关键词数</div></div>
+    <!-- Gauge -->
+    <div class="gauge-row">
+      <div class="gauge-wrap" id="gaugeWrap"></div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-value">${scorePct}%</div><div class="metric-label">情感得分</div></div>
+        <div class="metric"><div class="metric-value">${confPct}%</div><div class="metric-label">置信度</div></div>
+        <div class="metric"><div class="metric-value">${data.sentences_detail?.length||0}</div><div class="metric-label">分析句子</div></div>
+        <div class="metric"><div class="metric-value">${data.keywords?.length||0}</div><div class="metric-label">关键词</div></div>
+      </div>
     </div>`;
 
   // Keywords
   if(data.keywords?.length){
-    html+=`<h4 style="margin-bottom:8px;"> 关键词提取</h4><div class="keywords">`;
+    html+=`<h4 style="margin-bottom:6px;">🏷️ 关键词提取</h4><div class="keywords">`;
     data.keywords.forEach(k=>{
       const cls = k.weight>0.05?'keyword-pos':'keyword-neg';
-      html+=`<span class="keyword ${cls}">${k.word} (${k.weight.toFixed(2)})</span>`;
+      html+=`<span class="keyword ${cls}">${k.word}</span>`;
     });
     html+=`</div>`;
   }
 
-  // Word frequency chart
+  // Charts
   if(data.word_freq?.length){
-    html+=`<div class="chart-row" style="margin-top:20px;">
+    html+=`<div class="chart-row" style="margin-top:16px;">
       <div class="chart-box" id="wordFreqChart"></div>
       <div class="chart-box" id="sentPieChart"></div>
     </div>`;
@@ -208,60 +293,82 @@ function renderResult(data){
 
   // Sentence detail
   if(data.sentences_detail?.length){
-    html+=`<h4 style="margin:20px 0 10px;"> 逐句分析</h4>`;
+    html+=`<h4 style="margin:20px 0 10px;">📝 逐句分析</h4>`;
     data.sentences_detail.forEach(s=>{
       const sc = s.label==='positive'?'label-positive':s.label==='negative'?'label-negative':'label-neutral';
+      const e = s.label==='positive'?'😊':s.label==='negative'?'😞':'😐';
       html+=`<div class="sentence-item">
+        <span style="font-size:0.9rem;">${e}</span>
         <span class="sentence-text">${s.text}</span>
-        <span class="sentence-badge ${sc}">${(s.score*100).toFixed(0)}% ${s.label==='positive'?'':s.label==='negative'?'':''}</span>
+        <span class="sentence-badge ${sc}">${(s.score*100).toFixed(0)}%</span>
       </div>`;
     });
   }
 
   html+=`</div>`;
-  document.getElementById('resultArea').innerHTML=html;
+  document.getElementById('resultArea').innerHTML = html;
 
-  // Render charts
-  if(data.word_freq?.length) renderWordFreqChart(data.word_freq);
-  if(data.sentences_detail?.length) renderSentPieChart(data.sentences_detail);
+  // Store data for export
+  window._lastResult = data;
+
+  // Render visualizations
+  setTimeout(()=>{
+    drawGauge(parseFloat(scorePct));
+    if(data.word_freq?.length) renderWordFreqChart(data.word_freq);
+    if(data.sentences_detail?.length) renderSentPieChart(data.sentences_detail);
+  }, 100);
+}
+
+// ===== SVG Gauge =====
+function drawGauge(score){
+  const wrap = document.getElementById('gaugeWrap');
+  if(!wrap) return;
+  const color = score>60?'#10b981':score<40?'#ef4444':'#f59e0b';
+  const circumference = 2 * Math.PI * 70;
+  const offset = circumference * (1 - score/100);
+  wrap.innerHTML = `<svg class="gauge-svg" viewBox="0 0 180 130">
+    <path d="M20 100 A70 70 0 0 1 160 100" class="gauge-bg"/>
+    <path d="M20 100 A70 70 0 0 1 160 100" class="gauge-fill" style="stroke:${color};stroke-dasharray:${circumference};stroke-dashoffset:${offset};"/>
+    <polygon points="86,20 80,100 100,100 94,20" class="gauge-needle" style="transform:rotate(${(score-50)*1.8}deg);fill:${color};"/>
+    <circle cx="90" cy="100" r="6" fill="${color}"/>
+    <text x="90" y="60" class="gauge-text" fill="${color}">${score}%</text>
+    <text x="30" y="120" class="gauge-label" fill="var(--text2)">负面</text>
+    <text x="148" y="120" class="gauge-label" fill="var(--text2)">正面</text>
+  </svg>`;
 }
 
 // ===== Charts =====
 function renderWordFreqChart(wordFreq){
   const dom = document.getElementById('wordFreqChart');
   if(!dom) return;
-  const chart = echarts.init(dom);
-  chart.setOption({
-    title:{text:'词频统计 Top 20',textStyle:{color:'#e2e8f0',fontSize:14},left:'center'},
+  echarts.init(dom).setOption({
+    title:{text:'词频统计 Top 20',textStyle:{color:isDark?'#e2e8f0':'#1e293b',fontSize:14},left:'center'},
     tooltip:{trigger:'axis'},
-    xAxis:{type:'category',data:wordFreq.slice(0,20).map(w=>w.word),axisLabel:{color:'#94a3b8',rotate:45}},
-    yAxis:{type:'value',axisLabel:{color:'#94a3b8'}},
+    xAxis:{type:'category',data:wordFreq.slice(0,20).map(w=>w.word),axisLabel:{color:isDark?'#94a3b8':'#64748b',rotate:45}},
+    yAxis:{type:'value',axisLabel:{color:isDark?'#94a3b8':'#64748b'}},
     series:[{type:'bar',data:wordFreq.slice(0,20).map(w=>w.count),
-      itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[
-        {offset:0,color:'#818cf8'},{offset:1,color:'#6366f1'}
-      ])}}],
+      itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#818cf8'},{offset:1,color:'#6366f1'}])}
+    }],
     grid:{top:50,right:20,bottom:70,left:50}
   });
 }
-
 function renderSentPieChart(sentences){
   const dom = document.getElementById('sentPieChart');
   if(!dom) return;
   const pos=sentences.filter(s=>s.label==='positive').length;
   const neg=sentences.filter(s=>s.label==='negative').length;
   const neu=sentences.filter(s=>s.label==='neutral').length;
-  const chart = echarts.init(dom);
-  chart.setOption({
-    title:{text:'句子情感分布',textStyle:{color:'#e2e8f0',fontSize:14},left:'center'},
+  echarts.init(dom).setOption({
+    title:{text:'句子情感分布',textStyle:{color:isDark?'#e2e8f0':'#1e293b',fontSize:14},left:'center'},
     tooltip:{trigger:'item'},
-    legend:{bottom:10,textStyle:{color:'#94a3b8'}},
+    legend:{bottom:10,textStyle:{color:isDark?'#94a3b8':'#64748b'}},
     series:[{type:'pie',radius:['40%','70%'],center:['50%','45%'],
       data:[
         {value:pos,name:'正面',itemStyle:{color:'#10b981'}},
         {value:neg,name:'负面',itemStyle:{color:'#ef4444'}},
         {value:neu,name:'中性',itemStyle:{color:'#f59e0b'}},
       ],
-      label:{color:'#94a3b8'}
+      label:{color:isDark?'#94a3b8':'#64748b'}
     }]
   });
 }
@@ -269,7 +376,8 @@ function renderSentPieChart(sentences){
 // ===== WordCloud =====
 async function generateWordCloud(){
   const text = document.getElementById('inputText').value.trim();
-  if(!text) return alert('请先输入文本！');
+  if(!text) return showToast('请先输入文本！');
+  showToast('词云生成中...');
   try{
     const res = await fetch(`${API}/wordcloud`,{
       method:'POST',headers:{'Content-Type':'application/json'},
@@ -278,10 +386,38 @@ async function generateWordCloud(){
     if(res.ok){
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const win = window.open('','_blank');
-      win.document.write(`<img src="${url}" style="max-width:100%;">`);
+      const w = window.open('','_blank','width=900,height=550');
+      w.document.write(`<title>词云</title><body style="margin:0;display:flex;align-items:center;justify-content:center;background:#f8fafc;"><img src="${url}" style="max-width:100%;max-height:100vh;" onload="this.style.display='block'"></body>`);
+      showToast('词云已生成 ✅');
     }
-  }catch(e){alert('词云生成失败');}
+  }catch(e){showToast('词云生成失败，请确认后端已启动');}
+}
+
+// ===== Copy Result =====
+function copyResult(){
+  const data = window._lastResult;
+  if(!data) return showToast('请先进行分析');
+  const names = {positive:'正面情绪 😊', negative:'负面情绪 😞', neutral:'中性情绪 😐'};
+  let text = `【AI情绪分析结果】\n`;
+  text += `情感: ${names[data.label]||data.label}\n`;
+  text += `得分: ${(data.score*100).toFixed(1)}% | 置信度: ${(data.confidence*100).toFixed(1)}%\n`;
+  if(data.keywords?.length) text += `关键词: ${data.keywords.slice(0,8).map(k=>k.word).join(', ')}\n`;
+  if(data.sentences_detail?.length) text += `\n逐句分析:\n${data.sentences_detail.map(s=>`  ${s.label==='positive'?'+':s.label==='negative'?'-':'~'} ${s.text}`).join('\n')}`;
+  navigator.clipboard.writeText(text).then(()=>showToast('已复制到剪贴板 ✅'));
+}
+
+// ===== Export Image =====
+async function exportImage(){
+  const card = document.getElementById('resultCard');
+  if(!card) return showToast('请先进行分析');
+  try{
+    const canvas = await html2canvas(card, {backgroundColor: isDark?'#1e293b':'#ffffff',scale:2});
+    const link = document.createElement('a');
+    link.download = 'sentiment-analysis.png';
+    link.href = canvas.toDataURL();
+    link.click();
+    showToast('图片已下载 ✅');
+  }catch(e){showToast('导出失败，请刷新后重试');}
 }
 
 // ===== Batch Analysis =====
@@ -294,28 +430,22 @@ function handleFileUpload(e){
   };
   reader.readAsText(file);
 }
-
 async function analyzeBatch(){
   const text = document.getElementById('batchText').value.trim();
-  if(!text) return alert('请输入文本或上传文件！');
+  if(!text) return showToast('请输入文本或上传文件！');
   const texts = text.split('\n').filter(t=>t.trim());
-  if(!texts.length) return alert('未找到有效文本行！');
-
+  if(!texts.length) return showToast('未找到有效文本行！');
   showLoading('batchResult');
   try{
-    const res = await fetch(`${API}/analyze/batch`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({texts})
-    });
+    const res = await fetch(`${API}/analyze/batch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texts})});
     const data = await res.json();
     renderBatchResult(data);
   }catch(e){showError('batchResult','批量分析失败');}
 }
-
 function renderBatchResult(data){
   const s = data.summary;
   let html=`<div class="card" style="margin-top:20px;">
-    <h4> 批量分析结果（共 ${s.total} 条）</h4>
+    <h4>📊 批量分析结果（共 ${s.total} 条）</h4>
     <div class="metrics">
       <div class="metric"><div class="metric-value label-positive">${s.positive}</div><div class="metric-label">正面</div></div>
       <div class="metric"><div class="metric-value label-negative">${s.negative}</div><div class="metric-label">负面</div></div>
@@ -323,38 +453,25 @@ function renderBatchResult(data){
       <div class="metric"><div class="metric-value">${(s.avg_score*100).toFixed(1)}%</div><div class="metric-label">平均得分</div></div>
     </div>
     <div class="chart-box chart-full" id="batchPieChart" style="height:300px;"></div>`;
-
   if(data.results?.length){
     html+=`<div style="max-height:300px;overflow-y:auto;margin-top:16px;">`;
     data.results.forEach(r=>{
       const sc=r.label==='positive'?'label-positive':r.label==='negative'?'label-negative':'label-neutral';
-      html+=`<div class="sentence-item">
-        <span class="sentence-text">${r.text.slice(0,80)}</span>
-        <span class="sentence-badge ${sc}">${(r.score*100).toFixed(0)}%</span>
-      </div>`;
+      html+=`<div class="sentence-item"><span class="sentence-text">${r.text.slice(0,80)}</span><span class="sentence-badge ${sc}">${(r.score*100).toFixed(0)}%</span></div>`;
     });
     html+=`</div>`;
   }
   html+=`</div>`;
   document.getElementById('batchResult').innerHTML=html;
-
-  // Pie chart
   const dom = document.getElementById('batchPieChart');
-  if(dom){
-    const chart = echarts.init(dom);
-    chart.setOption({
-      title:{text:'情感分布概览',textStyle:{color:'#e2e8f0',fontSize:14},left:'center'},
-      tooltip:{trigger:'item'},
-      series:[{type:'pie',radius:['45%','75%'],
-        data:[
-          {value:s.positive,name:'正面',itemStyle:{color:'#10b981'}},
-          {value:s.negative,name:'负面',itemStyle:{color:'#ef4444'}},
-          {value:s.neutral,name:'中性',itemStyle:{color:'#f59e0b'}},
-        ],
-        label:{color:'#94a3b8',formatter:'{b}: {c} ({d}%)'}
-      }]
-    });
-  }
+  if(dom){echarts.init(dom).setOption({
+    title:{text:'情感分布概览',textStyle:{color:isDark?'#e2e8f0':'#1e293b',fontSize:14},left:'center'},
+    tooltip:{trigger:'item'},
+    series:[{type:'pie',radius:['45%','75%'],
+      data:[{value:s.positive,name:'正面',itemStyle:{color:'#10b981'}},{value:s.negative,name:'负面',itemStyle:{color:'#ef4444'}},{value:s.neutral,name:'中性',itemStyle:{color:'#f59e0b'}}],
+      label:{color:isDark?'#94a3b8':'#64748b',formatter:'{b}: {c} ({d}%)'}
+    }]
+  });}
 }
 
 // ===== History =====
@@ -364,20 +481,21 @@ async function loadHistory(){
     const data = await res.json();
     document.getElementById('historyContent').innerHTML=`
       <div class="metrics" style="margin:16px 0;">
-        <div class="metric"><div class="metric-value">${data.total||0}</div><div class="metric-label">总分析次数</div></div>
+        <div class="metric"><div class="metric-value">${data.total||0}</div><div class="metric-label">总分析</div></div>
         <div class="metric"><div class="metric-value label-positive">${data.stats?.positive||0}</div><div class="metric-label">正面</div></div>
         <div class="metric"><div class="metric-value label-negative">${data.stats?.negative||0}</div><div class="metric-label">负面</div></div>
         <div class="metric"><div class="metric-value label-neutral">${data.stats?.neutral||0}</div><div class="metric-label">中性</div></div>
       </div>
       ${(data.records||[]).reverse().slice(0,15).map(r=>`
-        <div class="sentence-item">
-          <span class="sentence-text">${r.text?.slice(0,80)||''}</span>
-          <span class="sentence-badge ${r.label==='positive'?'label-positive':r.label==='negative'?'label-negative':'label-neutral'}">${(r.score*100).toFixed(0)}%</span>
-          <span style="font-size:0.75rem;color:var(--text2);">${r.timestamp?.slice(0,10)||''}</span>
-        </div>
-      `).join('')}
-    `;
-  }catch(e){document.getElementById('historyContent').innerHTML='<p style="color:var(--text2);">暂无历史记录</p>';}
+        <div class="sentence-item"><span class="sentence-text">${r.text?.slice(0,80)||''}</span><span class="sentence-badge ${r.label==='positive'?'label-positive':r.label==='negative'?'label-negative':'label-neutral'}">${(r.score*100).toFixed(0)}%</span><span style="font-size:0.75rem;color:var(--text2)">${r.timestamp?.slice(0,10)||''}</span></div>
+      `).join('')}`;
+  }catch(e){document.getElementById('historyContent').innerHTML='<p style="color:var(--text2);padding:20px;">暂无历史记录</p>';}
+}
+function clearHistory(){
+  if(confirm('确认清空所有历史记录？')){
+    fetch(`${API}/history/clear`, {method:'DELETE'}).catch(()=>{});
+    document.getElementById('historyContent').innerHTML='<p style="color:var(--text2);padding:20px;">记录已清空</p>';
+  }
 }
 
 // ===== Helpers =====
@@ -385,11 +503,21 @@ function showLoading(id){
   document.getElementById(id).innerHTML='<div class="card" style="text-align:center;padding:40px;"><div class="spinner"></div><p style="margin-top:12px;color:var(--text2);">分析中...</p></div>';
 }
 function showError(id,msg){
-  document.getElementById(id).innerHTML=`<div class="card" style="text-align:center;padding:40px;color:var(--negative);"><p>${msg}</p></div>`;
+  document.getElementById(id).innerHTML=`<div class="card" style="text-align:center;padding:40px;color:var(--negative);"><p>⚠️ ${msg}</p></div>`;
 }
-function clearInput(){document.getElementById('inputText').value='';document.getElementById('resultArea').innerHTML='';}
+function clearAll(){
+  document.getElementById('inputText').value = '';
+  document.getElementById('resultArea').innerHTML = '';
+  updateCharCount();
+  window._lastResult = null;
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2000);
+}
 
-// Drag & drop for batch
+// Drag & drop
 const zone = document.getElementById('uploadZone');
 if(zone){
   zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});

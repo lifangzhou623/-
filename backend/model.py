@@ -234,7 +234,17 @@ class SentimentAnalyzer:
             matplotlib.use('Agg')
             import matplotlib.pyplot as plt
 
-            word_freq_dict = dict(counter.most_common(100))
+            # 用jieba分词计算词频
+            words = jieba.lcut(text)
+            stop_words = {'的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都',
+                          '一', '一个', '上', '也', '很', '到', '说', '要', '去', '你',
+                          '会', '着', '没有', '看', '好', '自己', '这', '他', '她', '它',
+                          '们', '那', '什么', '怎么', '如何', '为什么', '因为', '所以',
+                          '但是', '然而', '虽然', '可以', '这个', '那个', '我们', '你们',
+                          '他们', '她们', '它们', '啊', '呢', '吧', '吗', '嗯', '哦',
+                          '被', '把', '让', '给', '与', '或', '及', '对', '从', '以'}
+            filtered = [w for w in words if len(w) > 1 and w not in stop_words]
+            word_freq_dict = dict(Counter(filtered).most_common(100))
 
             wc = WordCloud(
                 font_path='C:/Windows/Fonts/msyh.ttc',  # 微软雅黑
