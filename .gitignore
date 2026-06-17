@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+data/history.json
+data/wordclouds/
+*.cache
+.venv/
+venv/
+.env
+.DS_Store
+Thumbs.db
